@@ -1,127 +1,182 @@
 ﻿# Industrial IoT Monitoring Platform
-### ESP32 Telemetry Monitoring with MQTT, Python, Prometheus & Grafana
 
-**Project Type:** Internet of Things (IoT) / Network Monitoring  
-**Status:** Prototype – Functional  
-**Development Environment:** Windows, Docker, Python, Wokwi  
-**Date:** November 2026
+An Industrial IoT monitoring project that collects ESP32 telemetry through MQTT, processes device data using Python, exposes metrics to Prometheus, and visualizes monitoring information through Grafana.
 
-## 2. Dashboard Preview
-
-![IoT Monitoring Dashboard](docs/screenshots/grafana-dashboard.png)
-
-*Grafana dashboard displaying ESP32 device status, telemetry age, received messages, uptime, and telemetry rate.*
+This project demonstrates an end-to-end IoT monitoring pipeline using open-source technologies.
 
 ## 1. Project Overview
 
-This project is a prototype IoT monitoring platform designed to collect, process, and visualize telemetry data from an ESP32 device in near real time.
+The platform monitors telemetry published by an ESP32 device simulated in Wokwi.
 
-The system uses MQTT for device communication, Python as the monitoring engine, Prometheus for metrics collection, and Grafana for dashboard visualization.
+Device telemetry is transmitted through a public MQTT broker, processed by a Python monitoring engine, collected by Prometheus, and displayed in a Grafana dashboard.
 
-The main objective is to demonstrate how IoT device telemetry can be monitored, how device communication interruptions can be detected, and how operational metrics can be presented through a centralized dashboard.
+The current implementation focuses on device availability, telemetry reception, uptime, sequence tracking, and telemetry freshness.
 
 ## 2. System Architecture
 
-```text
-ESP32 (Wokwi Simulator)
-        |
-        | MQTT Telemetry
-        v
-HiveMQ Public MQTT Broker
-        |
-        | MQTT Subscription
-        v
-Python Monitoring Engine
-        |
-        | Prometheus Metrics
-        v
-Prometheus Server (Docker)
-        |
-        | PromQL
-        v
-Grafana Dashboard
+```mermaid
+flowchart LR
+    A["ESP32 Device<br/>Wokwi Simulator"] -->|MQTT Publish| B["HiveMQ Public Broker"]
+    B -->|MQTT Subscribe| C["Python Monitoring Engine"]
+    C -->|Expose Metrics<br/>Port 8000| D["Prometheus"]
+    D -->|PromQL Queries| E["Grafana Dashboard"]
 ```
 
-## 3. Technologies Used
+### Data Flow
 
-| Technology | Function |
+1. ESP32 publishes JSON telemetry every 5 seconds.
+2. HiveMQ receives the telemetry through MQTT.
+3. Python subscribes to the MQTT topic and processes incoming messages.
+4. Python exposes monitoring metrics through an HTTP endpoint.
+5. Prometheus scrapes the metrics every 5 seconds.
+6. Grafana queries Prometheus and displays the monitoring dashboard.
+
+## 3. Technology Stack
+
+| Component | Technology |
 |---|---|
-| ESP32 / Wokwi | Simulated IoT device |
-| MQTT / HiveMQ | Telemetry communication |
-| Python | MQTT subscriber and monitoring engine |
-| Paho MQTT | Python MQTT client |
-| Prometheus Client | Exposes monitoring metrics |
-| Prometheus | Metrics collection and querying |
-| Grafana | Dashboard visualization |
-| Docker Compose | Runs supporting services |
-| PowerShell | Windows environment management |
+| IoT Device Simulation | ESP32 / Wokwi |
+| Communication Protocol | MQTT |
+| MQTT Broker | HiveMQ Public Broker |
+| Monitoring Engine | Python |
+| Metrics Collection | Prometheus |
+| Visualization | Grafana |
+| Container Platform | Docker |
+| Monitoring Query Language | PromQL |
 
-## 4. Implemented Features
+## 4. Project Structure
 
-- ESP32 publishes JSON telemetry every 5 seconds.
-- Python subscribes to MQTT telemetry.
-- Incoming messages are parsed and validated.
-- Prometheus metrics are exposed through HTTP port 8000.
-- Prometheus scrapes the Python exporter every 5 seconds.
-- Device availability is evaluated using a 15-second telemetry timeout.
-- Grafana visualizes device status, telemetry age, total messages, device uptime, and telemetry rate.
-- Device interruption and recovery can be demonstrated by stopping and restarting the Wokwi simulation.
+```text
+iot-network-monitoring/
+├── docs/
+│   └── screenshots/
+│       ├── grafana-dashboard.png
+│       ├── prometheus-targets.png
+│       └── python-telemetry.png
+├── firmware/
+├── grafana/
+├── monitoring/
+│   └── mqtt_subscriber.py
+├── mqtt/
+├── prometheus/
+│   └── prometheus.yml
+├── scripts/
+├── tests/
+├── .gitignore
+├── README.md
+└── docker-compose.yml
+```
 
 ## 5. Monitoring Metrics
 
+The Python monitoring engine exposes the following Prometheus metrics:
+
 | Metric | Description |
 |---|---|
-| `iot_device_up` | Device telemetry availability (1 = UP, 0 = DOWN) |
-| `iot_telemetry_age_seconds` | Age of the latest received telemetry |
-| `iot_messages_received_total` | Total telemetry messages received |
-| `iot_device_uptime_ms` | Device-reported uptime |
-| `iot_last_sequence` | Last received message sequence |
-| `iot_last_message_timestamp_seconds` | Timestamp of latest received message |
+| `iot_messages_received_total` | Total MQTT telemetry messages received |
+| `iot_device_up` | Device telemetry availability status |
+| `iot_device_uptime_ms` | Device uptime in milliseconds |
+| `iot_last_sequence` | Latest telemetry sequence number |
+| `iot_last_message_timestamp_seconds` | Timestamp of the latest received message |
+| `iot_telemetry_age_seconds` | Age of the latest telemetry message |
 
-## 6. Dashboard
+Device availability is determined by telemetry freshness. If no telemetry is received within the configured 15-second timeout, the device status is marked as unavailable.
 
-The Grafana dashboard, named **New ESP32 Device Status**, provides a centralized view of the ESP32 telemetry monitoring system.
+## 6. Grafana Dashboard
 
-Dashboard panels include:
+The Grafana dashboard provides visibility into the ESP32 monitoring metrics.
 
-1. ESP32 Device Status
-2. Telemetry Age
-3. Total Telemetry Received
-4. ESP32 Device Uptime
-5. Telemetry Rate
-6. Telemetry Rate History (if enabled and saved)
+![Grafana Dashboard](docs/screenshots/grafana-dashboard.png)
 
-## 7. Testing and Validation
+*Grafana dashboard showing device status, telemetry age, received messages, uptime, and telemetry rate.*
 
-The prototype was tested through the following scenarios:
+## 7. Prometheus Monitoring
 
-- Verified MQTT connection between ESP32 simulation and HiveMQ.
-- Verified telemetry reception by the Python monitoring engine.
-- Verified Prometheus metrics through the `/metrics` endpoint.
-- Verified Prometheus target availability.
-- Queried telemetry metrics using PromQL.
-- Stopped the ESP32 simulation and observed the device status change to DOWN after the timeout.
-- Restarted the simulation and verified telemetry recovery.
+Prometheus collects metrics exposed by the Python monitoring engine.
 
-## 8. Project Limitations and Future Improvements
+![Prometheus Targets](docs/screenshots/prometheus-targets.png)
 
-This implementation is a functional prototype, not yet a production-ready industrial monitoring system.
+*Prometheus target status showing the Python monitoring endpoint.*
 
-Planned improvements:
+## 8. Python Monitoring Engine
 
-- ICMP and TCP network latency monitoring.
-- Packet loss and jitter measurement.
-- DNS and MQTT connectivity diagnostics.
-- Alerting and notification integration.
-- MQTT authentication and TLS encryption.
-- Multi-device and multi-site monitoring.
-- Docker-based deployment documentation.
-- Automated testing and fault simulation.
+The Python application subscribes to the MQTT telemetry topic, processes incoming JSON messages, and exposes metrics for Prometheus.
 
-**Security note:** The current demonstration uses a public HiveMQ broker over MQTT port 1883. It is intended for non-sensitive test telemetry only. Production deployment requires authenticated and encrypted communication.
+![Python Telemetry](docs/screenshots/python-telemetry.png)
 
-## 9. Project Outcome
+*Python terminal output showing received ESP32 telemetry messages.*
 
-A working end-to-end IoT telemetry monitoring prototype was successfully developed. The implementation demonstrates device-to-cloud MQTT communication, Python-based telemetry processing, Prometheus metrics exposition and collection, and Grafana dashboard visualization.
+## 9. Running the Project
 
-The project establishes a foundation for developing a more comprehensive industrial IoT monitoring and network diagnostics platform.
+### Prerequisites
+
+- Python 3
+- Docker Desktop
+- Wokwi ESP32 simulation
+- Git
+
+### Start Docker Services
+
+```powershell
+docker compose up -d
+```
+
+### Install Python Dependencies
+
+```powershell
+python -m pip install paho-mqtt prometheus-client
+```
+
+### Start the Monitoring Engine
+
+```powershell
+python monitoring\mqtt_subscriber.py
+```
+
+### Access Monitoring Services
+
+| Service | URL |
+|---|---|
+| Python Metrics | http://localhost:8000/metrics |
+| Prometheus | http://localhost:9090 |
+| Prometheus Targets | http://localhost:9090/targets |
+| Grafana | http://localhost:3000 |
+
+The Grafana Prometheus data source should use:
+
+```text
+http://prometheus:9090
+```
+
+## 10. Current Implementation Scope
+
+The current project demonstrates:
+
+- ESP32 telemetry simulation using Wokwi.
+- MQTT communication through HiveMQ.
+- Python-based telemetry processing.
+- Prometheus metrics exposure and collection.
+- Grafana dashboard visualization.
+- Device availability monitoring based on telemetry timeout.
+
+## 11. Limitations and Security Considerations
+
+- The project currently uses one simulated ESP32 device.
+- HiveMQ public broker uses unencrypted MQTT communication on port 1883.
+- The public broker is intended for demonstration and testing, not sensitive or production telemetry.
+- Device availability is inferred from telemetry reception and does not independently verify physical device health.
+- Network diagnostics such as ICMP reachability, packet loss, latency, and jitter are not yet implemented.
+- Production authentication, TLS encryption, alerting, and multi-device deployment are future improvements.
+
+## 12. Future Improvements
+
+- Support multiple ESP32 devices.
+- Implement network connectivity diagnostics.
+- Add packet loss and latency monitoring.
+- Configure Grafana alerting.
+- Implement secure MQTT communication using authentication and TLS.
+- Extend the platform for multi-site industrial monitoring.
+
+## 13. Project Objective
+
+The objective of this project is to demonstrate practical integration of IoT communication, Python-based monitoring, time-series metrics collection, and real-time visualization as a foundation for an Industrial IoT Monitoring Platform.
